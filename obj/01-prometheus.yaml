@@ -38,7 +38,7 @@ items:
           app: prometheus
       spec:
         containers:
-        - image: prom/prometheus:v1.4.1
+        - image: prom/prometheus
           imagePullPolicy: IfNotPresent
           name: prometheus
           ports:
