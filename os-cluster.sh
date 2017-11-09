@@ -68,10 +68,8 @@ function createCluster() {
   oc adm policy add-scc-to-user anyuid -z grafana
 
   echo "adding cluster-role 'cluster-reader' to user prometheus in namespace 'default'"
-  oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:default:prometheus
-
+  oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:monitoring:prometheus
   oc login -u developer -u developer -n $PROJECTNAME
-
 
   echo "Deploying prometheus..."
   oc apply -f obj/01-prometheus.yaml
