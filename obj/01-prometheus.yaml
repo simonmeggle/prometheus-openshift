@@ -48,9 +48,9 @@ items:
           terminationMessagePath: /dev/termination-log
           volumeMounts:
           - mountPath: /etc/prometheus
-            name: cfgmap-prometheus
-          - mountPath: '/prometheus'
-            name: pvc-prometheus
+            name: config
+#          - mountPath: '/prometheus'
+#            name: pvc-prometheus
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}
@@ -58,12 +58,12 @@ items:
         serviceAccountName: prometheus
         terminationGracePeriodSeconds: 30
         volumes:
-        - name: cfgmap-prometheus
-          configMap:
+        - configMap:
             items:
             - key: prometheus.yml
               path: prometheus.yml
             name: prometheus-config
+          name: config
         - name: pvc-prometheus
           persistentVolumeClaim:
             claimName: "pvc-prometheus"
@@ -283,6 +283,6 @@ items:
           - targets: ['exporter:9101']
   metadata:
     creationTimestamp: null
-    name: cfgmap-prometheus
+    name: prometheus-config
 kind: List
 metadata: {}
