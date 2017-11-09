@@ -8,7 +8,7 @@ OSENV="$HOME/apps/oc/data/$CLUSTERNAME"
 
 function main() {
   echo "Please choose a cluster action: "
-  select ans in "Create" "Remove" "Abort"; do
+  select ans in "Create" "Remove" "Rebuild" "Abort"; do
       case $ans in
           Create ) createCluster
                    exit;;
