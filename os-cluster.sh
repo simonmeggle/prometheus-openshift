@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# inspired by https://github.com/he1nh/openshift-prometheus
 
 
 . .customvars.env
@@ -23,6 +24,18 @@ function main() {
   done
 }
 
+function waitForURL() {
+  URL=$1
+  for x in $(seq 120); do
+    curl --silent $URL | grep -q "Found" && echo "OK" && return
+    printf "."
+    sleep 1
+  done
+  echo "URL did not respond within 120 seconds. Aborting."
+  exit 1
+}
+
+
 function removeCluster() {
   echo "Shutting down cluster..."
   oc cluster down
@@ -44,7 +57,7 @@ function createCluster() {
     mkdir -p $OSENV/data
     mkdir -p $OSENV/vol
 
-    echo "create oc cluster for $OSENV"
+    echo "+ create oc cluster for $OSENV"
     oc cluster up \
        --use-existing-config=true \
        --host-config-dir=$OSENV/config \
@@ -54,52 +67,78 @@ function createCluster() {
       #  --public-hostname=$(hostname)
 
     # create the project:
-    echo "creating project $PROJECTNAME"
+    echo "+ creating project $PROJECTNAME"
     oc new-project $PROJECTNAME --display-name="$PROJECTDESC"
   fi
 
-
-  echo "creating serviceaccounts"
+  echo "+ creating serviceaccounts"
   oc create serviceaccount prometheus
   oc create serviceaccount grafana
   oc login -u system:admin
-  echo "assigning sccs"
+
+  oc adm policy add-cluster-role-to-user cluster-admin admin
+
+
+  echo "+ assigning anyuid context to prometheus service account"
   oc adm policy add-scc-to-user anyuid -z prometheus
   oc adm policy add-scc-to-user anyuid -z grafana
 
-  echo "adding cluster-role 'cluster-reader' to user prometheus in namespace 'default'"
+  echo "+ reading HAproxy stats auth credentials"
+  # HAPROXY_PORT=$(oc set env dc router -n default --list | grep STATS_PORT | awk -F"=" '{print $2}')
+  HAPROXY_STATS_USERNAME=$(oc set env dc router -n default --list | grep STATS_USERNAME | awk -F"=" '{print $2}'  )
+  HAPROXY_STATS_PASSWORD=$(oc set env dc router -n default --list | grep STATS_PASSWORD | awk -F"=" '{print $2}'  )
+
+  echo "+ adding cluster-role 'cluster-reader' to user prometheus in namespace 'default'"
   oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:monitoring:prometheus
   oc login -u developer -u developer -n $PROJECTNAME
 
-  echo "Deploying prometheus..."
+  echo "+ deploying Prometheus..."
   oc apply -f obj/01-prometheus.yaml
 
-  #
-  #
-  #
-  #
-  # exit
-  # oc secrets new-sshauth gitlab-ssh --ssh-privatekey=$(pwd)/.ssh/id_rsa
-  #
-  # oc login -u system:admin
-  # # allows to list nodes
-  # oc policy add-role-to-user cluster-admin system
-  # # label the local node
-  # oc label node localhost region="local"
-  #
-  # # any UID allowed for OMD-Container (needs root)
-  # oc create sa rootcontainer
-  # oc adm policy add-scc-to-user anyuid -z rootcontainer
-  #
-  # oc login -u developer -u developer
-  #
-  # # to allow OMD as sa "rootcontainer" to process tempates
-  # oc policy add-role-to-user edit -z rootcontainer
-  #
-  # omd-nagios/create_omd_volumes.sh
-  # omd-nagios/deploy_omd.sh
-  #
-  # sakuli-tests/trigger_sakuli_image_build.sh
+  echo "+ deploying Grafana..."
+  oc apply -f obj/02-grafana.yaml
+
+  PROMETHEUS_URL="http://"$(oc get route prometheus --template='{{ .spec.host }}')
+  echo "Waiting for the Prometheus URL coming available: ${PROMETHEUS_URL}"
+  waitForURL $PROMETHEUS_URL
+
+  GRAFANA_URL="http://"$(oc get route grafana --template='{{ .spec.host }}')
+  echo "Waiting for the Grafana URL coming available: ${GRAFANA_URL}"
+  waitForURL $GRAFANA_URL
+
+  echo "Importing Prometheus-datasource for Grafana"
+  DATASOURCE=$(cat <<EOF
+  {
+    "name":"prometheus",
+    "type":"prometheus",
+    "url":"${PROMETHEUS_URL}",
+    "access":"direct",
+    "basicAuth": false
+  }
+EOF
+)
+
+  curl -u admin:admin --silent --fail --show-error \
+    --request POST ${GRAFANA_URL}/api/datasources \
+    --header "Content-Type: application/json" \
+    --data-binary "${DATASOURCE}"
+
+  # DASHBOARDS=( 22 737 )
+  # for D in ${DASHBOARDS[@]}; do
+  # echo "Importing Dashboard https://grafana.com/dashboards/${D}"
+  # curl -u admin:admin --silent --fail --show-error \
+  #   --request POST ${GRAFANA_URL}/api/dashboards/db \
+  #   --header "Content-Type: application/json" \
+  #   --data-binary "@./grafana_dashboards/${D}.json"
+  # done
+
+exit
+  # ROUTER
+  oc process -f obj/03-haproxy-exporter.yaml -p HAPROXY_STATS_USERNAME=$HAPROXY_STATS_USERNAME -p HAPROXY_STATS_PASSWORD=$HAPROXY_STATS_PASSWORD | oc apply -f -
+
+
+
+
 }
 
 main

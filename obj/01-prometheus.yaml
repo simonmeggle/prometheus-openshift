@@ -276,11 +276,14 @@ items:
           target_label: kubernetes_pod_name
 
       # scrape config for haproxy-exporter
-      - job_name: 'haproxy-scrape'
+      - job_name: 'haproxy'
         metrics_path: '/metrics'
         scheme: http
+        basic_auth:
+          username: admin
+          password: 0i2Gttw4av
         static_configs:
-          - targets: ['exporter:9101']
+          - targets: ['router.default.svc:1936']
   metadata:
     creationTimestamp: null
     name: prometheus-config
