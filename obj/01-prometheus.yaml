@@ -1,5 +1,19 @@
 apiVersion: v1
-items:
+kind: Template
+metadata:
+  name: haproxy-template
+  annotations:
+    description: "Template for haproxy"
+    iconClass: "icon-beaker"
+    tags: "haproxy"
+parameters:
+- description: 'HAProxy stats username'
+  name: HAPROXY_STATS_USERNAME
+  required: true
+- description: 'HAProxy stats password'
+  name: HAPROXY_STATS_PASSWORD
+  required: true
+objects:
 - apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:
@@ -280,12 +294,10 @@ items:
         metrics_path: '/metrics'
         scheme: http
         basic_auth:
-          username: admin
-          password: 0i2Gttw4av
+          username: ${HAPROXY_STATS_USERNAME}
+          password: ${HAPROXY_STATS_PASSWORD}
         static_configs:
           - targets: ['router.default.svc:1936']
   metadata:
     creationTimestamp: null
     name: prometheus-config
-kind: List
-metadata: {}

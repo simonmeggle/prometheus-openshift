@@ -93,7 +93,7 @@ function createCluster() {
   oc login -u developer -u developer -n $PROJECTNAME
 
   echo "+ deploying Prometheus..."
-  oc apply -f obj/01-prometheus.yaml
+  oc process -f obj/01-prometheus.yaml -p HAPROXY_STATS_USERNAME=$HAPROXY_STATS_USERNAME -p HAPROXY_STATS_PASSWORD=$HAPROXY_STATS_PASSWORD | oc apply -f -
 
   echo "+ deploying Grafana..."
   oc apply -f obj/02-grafana.yaml
@@ -131,13 +131,6 @@ EOF
   #   --header "Content-Type: application/json" \
   #   --data-binary "@./grafana_dashboards/${D}.json"
   # done
-
-exit
-  # ROUTER
-  oc process -f obj/03-haproxy-exporter.yaml -p HAPROXY_STATS_USERNAME=$HAPROXY_STATS_USERNAME -p HAPROXY_STATS_PASSWORD=$HAPROXY_STATS_PASSWORD | oc apply -f -
-
-
-
 
 }
 
