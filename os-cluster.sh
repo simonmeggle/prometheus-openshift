@@ -73,6 +73,7 @@ function createCluster() {
 
   echo "+ creating serviceaccounts"
   oc create serviceaccount prometheus
+  oc create serviceaccount kube-state-metrics
   oc create serviceaccount grafana
   oc create serviceaccount node-exporter
 
@@ -92,6 +93,7 @@ function createCluster() {
 
   echo "+ adding cluster-role 'cluster-reader' to user prometheus in namespace 'default'"
   oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:monitoring:prometheus
+  oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:monitoring:kube-state-metrics
   oc login -u developer -u developer -n $PROJECTNAME
 
   echo "+ deploying Prometheus..."
@@ -99,6 +101,12 @@ function createCluster() {
 
   echo "+ deploying Grafana..."
   oc apply -f obj/02-grafana.yaml
+
+  echo "+ deploying Node-Exporter..."
+  oc login -u system:admin
+  oc apply -f obj/04-node-exporter.yaml
+
+
 
   PROMETHEUS_URL="http://"$(oc get route prometheus --template='{{ .spec.host }}')
   echo "Waiting for the Prometheus URL coming available: ${PROMETHEUS_URL}"
@@ -137,3 +145,5 @@ EOF
 }
 
 main
+
+# until kctl get customresourcedefinitions servicemonitors.monitoring.coreos.com > /dev/null 2>&1; do sleep 1; printf "."; done

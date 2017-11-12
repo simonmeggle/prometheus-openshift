@@ -1,20 +1,28 @@
 TODO:
-* NodeExporter
+
 * Grafana Dashboard Import
-* shellscript aufräumen
-* cadvisor (https://www.robustperception.io/openshift-and-prometheus/) vs kube-state-metrics
-* node exporter
 * ifconfig-Hack von Robo
 eingerschränkter RAM innerhalb Limit
-
-Michael:
-  * haproxy (1/1 up) vs. kubernetes-service-endpoints (0/1 up) -  ist das der gleiche Router?
-  * Welche FS in den node-exporter reinhängen 
+* https://github.com/rbo/oc-cluster/blob/master/up
 
 
+## Monitoring-Targets:
+* Node exporter:
+  Node exporter is a Prometheus exporter for hardware and OS metrics expose UNIX kernels.
 
+* DeploymentConfig mit kube-state-metrics:
+  kube-state-metrics is a simple service that listens to the Kubernetes API server and generates metrics about the state of the objects.
+  Stellt alle API-Objekte als Prom. Metriken dar.
 
-https://github.com/rbo/oc-cluster/blob/master/up
+  "Der automatisierte Weg, beim debuggen mit kubectl oder oc get deployment den Status der Deplyments abzufragen. "
+ https://github.com/kubernetes/kube-state-metrics, (II: https://www.weave.works/blog/monitoring-kubernetes-infrastructure/) Dashboard: https://grafana.com/dashboards/741
+  Benutzt https://github.com/kubernetes/autoscaler/tree/master/addon-resizer
+
+* Config diff mit kubediff: https://www.weave.works/blog/monitoring-kubernetes-infrastructure/
+* Routers
+Router laufen im default namespace!
+der router-exporter wird nicht mehr benötigt; /metrics spuckt gleich Prometheus-Daten aus
+
 
 
 
@@ -39,18 +47,6 @@ Rollentypen:
   * endpoint:
   * ingress
   *
-
-
-
-## NodeExporter
-Node Exporter als Daemon Set
-
-
-
-## Routers
-Router laufen im default namespace!
-
-der router-exporter wird nicht mehr benötigt; /metrics spuckt gleich Prometheus-Daten aus
 
 
 Damit der admin alles sehen darf:
