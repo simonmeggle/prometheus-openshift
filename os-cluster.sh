@@ -74,15 +74,17 @@ function createCluster() {
   echo "+ creating serviceaccounts"
   oc create serviceaccount prometheus
   oc create serviceaccount grafana
+  oc create serviceaccount node-exporter
+
   oc login -u system:admin
 
   oc adm policy add-cluster-role-to-user cluster-admin admin
 
 
-  echo "+ assigning anyuid context to prometheus service account"
+  echo "+ assigning security context constraints to service accounts"
   oc adm policy add-scc-to-user anyuid -z prometheus
   oc adm policy add-scc-to-user anyuid -z grafana
-
+  oc adm policy add-scc-to-user privileged -z node-exporter
   echo "+ reading HAproxy stats auth credentials"
   # HAPROXY_PORT=$(oc set env dc router -n default --list | grep STATS_PORT | awk -F"=" '{print $2}')
   HAPROXY_STATS_USERNAME=$(oc set env dc router -n default --list | grep STATS_USERNAME | awk -F"=" '{print $2}'  )
