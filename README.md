@@ -1,11 +1,16 @@
 TODO:
 
-* Grafana Dashboard Import
+* Grafana Dashboards anpassen
+*
 * ifconfig-Hack von Robo
 eingerschränkter RAM innerhalb Limit
 * https://github.com/rbo/oc-cluster/blob/master/up
+* Mysql Beispiel-Pod?
+*  Dashboard: https://github.com/rfrail3/grafana-dashboards/tree/master/prometheus
 
-operator ist einen Blick wert!
+
+
+
 
 
 ## Monitoring-Targets:
