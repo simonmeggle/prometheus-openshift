@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: haproxy-template
+  name: prometheus-template
   annotations:
-    description: "Template for haproxy"
+    description: "Template for prometheus"
     iconClass: "icon-beaker"
-    tags: "haproxy"
+    tags: "prometheus"
 parameters:
 - description: 'HAProxy stats username'
   name: HAPROXY_STATS_USERNAME
@@ -167,6 +167,7 @@ objects:
           action: keep
           regex: default;kubernetes;https
 
+      # - job_name: 'node'
       - job_name: 'kubernetes-nodes'
         scheme: https
         tls_config:

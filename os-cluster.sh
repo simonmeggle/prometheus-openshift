@@ -76,6 +76,7 @@ function createCluster() {
   oc create serviceaccount kube-state-metrics
   oc create serviceaccount grafana
   oc create serviceaccount node-exporter
+  oc create serviceaccount git-sync
 
   oc login -u system:admin
 
@@ -85,6 +86,7 @@ function createCluster() {
   echo "+ assigning security context constraints to service accounts"
   oc adm policy add-scc-to-user anyuid -z prometheus
   oc adm policy add-scc-to-user anyuid -z grafana
+  oc adm policy add-scc-to-user anyuid -z git-sync
   oc adm policy add-scc-to-user privileged -z node-exporter
   echo "+ reading HAproxy stats auth credentials"
   # HAPROXY_PORT=$(oc set env dc router -n default --list | grep STATS_PORT | awk -F"=" '{print $2}')
@@ -102,10 +104,12 @@ function createCluster() {
   echo "+ deploying Grafana..."
   oc apply -f obj/02-grafana.yaml
 
-  echo "+ deploying Node-Exporter..."
   oc login -u system:admin
-  oc apply -f obj/04-node-exporter.yaml
+  echo "+ deploying Node-Exporter..."
+  oc apply -f obj/03-node-exporter.yaml
 
+  echo "+ deploying kube-state-metrics"
+  oc apply -f obj/04-kube-state-metrics.yaml
 
 
   PROMETHEUS_URL="http://"$(oc get route prometheus --template='{{ .spec.host }}')
@@ -132,6 +136,10 @@ EOF
     --request POST ${GRAFANA_URL}/api/datasources \
     --header "Content-Type: application/json" \
     --data-binary "${DATASOURCE}"
+
+# Dashboards:
+# - 1621 (Kubernetes cluster monitoring (via Prometheus))
+# - 
 
   # DASHBOARDS=( 22 737 )
   # for D in ${DASHBOARDS[@]}; do
