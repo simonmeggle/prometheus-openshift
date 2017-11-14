@@ -137,18 +137,6 @@ EOF
     --header "Content-Type: application/json" \
     --data-binary "${DATASOURCE}"
 
-# Dashboards:
-# - 1621 (Kubernetes cluster monitoring (via Prometheus))
-# - 
-
-  # DASHBOARDS=( 22 737 )
-  # for D in ${DASHBOARDS[@]}; do
-  # echo "Importing Dashboard https://grafana.com/dashboards/${D}"
-  # curl -u admin:admin --silent --fail --show-error \
-  #   --request POST ${GRAFANA_URL}/api/dashboards/db \
-  #   --header "Content-Type: application/json" \
-  #   --data-binary "@./grafana_dashboards/${D}.json"
-  # done
 
 }
 
