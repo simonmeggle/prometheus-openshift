@@ -17,7 +17,7 @@
   "gnetId": 1621,
   "graphTooltip": 0,
   "hideControls": false,
-  "id": 4,
+  "id": 3,
   "links": [],
   "refresh": false,
   "rows": [
@@ -2077,8 +2077,9 @@
       {
         "allValue": ".*",
         "current": {
-          "text": "All",
-          "value": "$__all"
+          "tags": [],
+          "text": "localhost",
+          "value": "localhost"
         },
         "datasource": "prometheus",
         "hide": 0,
@@ -2100,8 +2101,8 @@
     ]
   },
   "time": {
-    "from": "2017-11-13T16:22:04.412Z",
-    "to": "2017-11-13T17:02:04.412Z"
+    "from": "now-30m",
+    "to": "now"
   },
   "timepicker": {
     "refresh_intervals": [
@@ -2129,6 +2130,6 @@
     ]
   },
   "timezone": "browser",
-  "title": "Kubernetes cluster monitoring (via Prometheus) 3",
-  "version": 2
+  "title": "Kubernetes cluster",
+  "version": 1
 }
