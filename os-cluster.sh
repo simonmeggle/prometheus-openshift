@@ -62,7 +62,9 @@ function createCluster() {
        --use-existing-config=true \
        --host-config-dir=$OSENV/config \
        --host-data-dir=$OSENV/data \
-       --host-pv-dir=$OSENV/vol
+       --host-pv-dir=$OSENV/vol \
+       --public-hostname=192.168.199.199
+
       #   \
       #  --public-hostname=$(hostname)
 
@@ -71,23 +73,19 @@ function createCluster() {
     oc new-project $PROJECTNAME --display-name="$PROJECTDESC"
   fi
 
-  echo "+ creating serviceaccounts"
+  echo "+ creating serviceaccounts, assigning cluster roles"
   oc create serviceaccount prometheus
   oc create serviceaccount kube-state-metrics
   oc create serviceaccount grafana
   oc create serviceaccount node-exporter
-  oc create serviceaccount git-sync
-
   oc login -u system:admin
-
   oc adm policy add-cluster-role-to-user cluster-admin admin
-
 
   echo "+ assigning security context constraints to service accounts"
   oc adm policy add-scc-to-user anyuid -z prometheus
   oc adm policy add-scc-to-user anyuid -z grafana
-  oc adm policy add-scc-to-user anyuid -z git-sync
   oc adm policy add-scc-to-user privileged -z node-exporter
+
   echo "+ reading HAproxy stats auth credentials"
   # HAPROXY_PORT=$(oc set env dc router -n default --list | grep STATS_PORT | awk -F"=" '{print $2}')
   HAPROXY_STATS_USERNAME=$(oc set env dc router -n default --list | grep STATS_USERNAME | awk -F"=" '{print $2}'  )
