@@ -63,7 +63,7 @@ function createCluster() {
        --host-config-dir=$OSENV/config \
        --host-data-dir=$OSENV/data \
        --host-pv-dir=$OSENV/vol \
-       --public-hostname=192.168.199.199
+       --public-hostname=127.0.0.1
 
       #   \
       #  --public-hostname=$(hostname)
