@@ -6,6 +6,13 @@ metadata:
     description: "Template for prometheus"
     iconClass: "icon-beaker"
     tags: "prometheus"
+parameters:
+- description: 'HAProxy stats username'
+  name: HAPROXY_STATS_USERNAME
+  required: true
+- description: 'HAProxy stats password'
+  name: HAPROXY_STATS_PASSWORD
+  required: true
 objects:
 - apiVersion: v1
   kind: PersistentVolumeClaim
@@ -16,7 +23,7 @@ objects:
       - ReadWriteOnce
     resources:
       requests:
-        storage: '2Gi'
+        storage: '200Mi'
 - apiVersion: v1
   kind: DeploymentConfig
   metadata:
@@ -45,31 +52,22 @@ objects:
           app: prometheus
       spec:
         containers:
-        - image: prom/prometheus:v2.1.0
+        - image: prom/prometheus
           imagePullPolicy: IfNotPresent
           name: prometheus
-          args:
-          - --config.file=/etc/prometheus/prometheus.yml
-          - --storage.tsdb.path=/prometheus
-          - --storage.tsdb.retention=1m
           ports:
           - containerPort: 9090
             protocol: TCP
-          resources:
-            limits:
-              memory: '2Gi'
-            requests:
-              memory: '1Gi'
+          resources: {}
           terminationMessagePath: /dev/termination-log
           volumeMounts:
           - mountPath: /etc/prometheus
             name: config
-          - mountPath: '/prometheus'
-            name: pvc-prometheus
+#          - mountPath: '/prometheus'
+#            name: pvc-prometheus
         dnsPolicy: ClusterFirst
         restartPolicy: Always
-        securityContext:
-          runAsUser: 0
+        securityContext: {}
         serviceAccount: prometheus
         serviceAccountName: prometheus
         terminationGracePeriodSeconds: 30
@@ -223,6 +221,10 @@ objects:
 
         kubernetes_sd_configs:
         - role: endpoints
+
+        basic_auth:
+          username: ${HAPROXY_STATS_USERNAME}
+          password: ${HAPROXY_STATS_PASSWORD}
 
         relabel_configs:
         - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]

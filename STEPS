@@ -1,0 +1,39 @@
+oc login -u system:admin
+oc new-project monitoring
+oc delete limitrange default-limits
+oc delete quota default-quota
+oc create serviceaccount prometheus
+oc create serviceaccount kube-state-metrics
+oc create serviceaccount grafana
+oc create serviceaccount node-exporter
+
+? oc adm policy add-cluster-role-to-user cluster-admin admin
+
+oc adm policy add-scc-to-user anyuid -z prometheus
+oc adm policy add-scc-to-user anyuid -z grafana
+oc adm policy add-scc-to-user privileged -z node-exporter
+oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:monitoring:prometheus
+oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:monitoring:kube-state-metrics
+
+oc process -f obj/01-prometheus.yaml | oc apply -f -
+
+oc apply -f obj/04-kube-state-metrics.yaml
+
+OLD oc patch project monitoring -p '{"metadata":{"annotations":{"openshift.io/node-selector":""}}}'
+oc annotate ns monitoring openshift.io/node-selector= --overwrite
+
+oc apply -f obj/03-node-exporter.yaml
+
+oc apply -f obj/02-grafana.yaml
+
+TODO:
+- limits node-exporter
+          requests:
+            memory: 30Mi
+            cpu: 100m
+          limits:
+            memory: 50Mi
+            cpu: 200m
+- limits grafana
+- limits CPU
+- scrape interval

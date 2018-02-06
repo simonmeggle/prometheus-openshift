@@ -7,6 +7,9 @@ metadata:
   labels:
     app: node-exporter
 spec:
+  selector:
+    matchLabels:
+      app: node-exporter
   template:
     metadata:
       annotations:
@@ -21,13 +24,15 @@ spec:
       hostPID: true
       hostIPC: true
       hostNetwork: true
+      securityContext:
+        runAsUser: 0
       containers:
       - name: node-exporter
-        image: prom/node-exporter:v0.14.0
+        image: prom/node-exporter:v0.15.2
         args:
-        - -collector.procfs=/host/proc
-        - -collector.sysfs=/host/sys
-        - "-collector.filesystem.ignored-mount-points"
+        - --path.procfs=/host/proc
+        - --path.sysfs=/host/sys
+        - "--collector.filesystem.ignored-mount-points"
         - "^/(rootfs/)?(sys|proc|dev|host|etc|var|run).*"
         securityContext:
           privileged: true
