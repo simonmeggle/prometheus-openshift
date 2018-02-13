@@ -1302,14 +1302,14 @@
         "datasource": "${DS_PROMETHEUS}",
         "hide": 0,
         "includeAll": true,
-        "label": "Instance",
-        "multi": false,
+        "label": "Node",
+        "multi": true,
         "name": "instance",
         "options": [],
-        "query": "label_values(instance)",
+        "query": "label_values(node)",
         "refresh": 1,
         "regex": "",
-        "sort": 0,
+        "sort": 1,
         "tagValuesQuery": "",
         "tags": [],
         "tagsQuery": "",
@@ -1369,5 +1369,5 @@
   },
   "timezone": "browser",
   "title": "Kubernetes Pod Resources",
-  "version": 4
+  "version": 5
 }
