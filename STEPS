@@ -11,36 +11,41 @@ Node-Exporter 0.15.2
 
 oc login -u system:admin
 oc new-project monitoring
+
+### ignore the project limits
 # oc export limits default-limits -o yaml > default_limits.yaml
 oc delete limitrange default-limits
 # oc export quota default-quota -o yaml > deault_quota.yaml
 oc delete quota default-quota
+
+### create service accounts
 oc create serviceaccount prometheus
 oc create serviceaccount kube-state-metrics
 oc create serviceaccount grafana
 oc create serviceaccount node-exporter
 
-# optional: 
+### optional
 oc adm policy add-cluster-role-to-user cluster-admin admin
 
+### allow containers to run with root user
 oc adm policy add-scc-to-user anyuid -z prometheus
 oc adm policy add-scc-to-user anyuid -z grafana
+
+### allow privileged execution of node-exporter
 oc adm policy add-scc-to-user privileged -z node-exporter
 
+### allow Prometheus and k-s-m to read cluster metrics
 oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:monitoring:prometheus
 oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:monitoring:kube-state-metrics
 
-oc apply -f obj/01-prometheus.yaml
-
-oc apply -f obj/02-grafana.yaml
-
+### ignore the default node selector so that node-exporters can run on _every_ node
 oc annotate ns monitoring openshift.io/node-selector= --overwrite
+
+### ROLLOUT ###
+oc apply -f obj/01-prometheus.yaml
+oc apply -f obj/02-grafana.yaml
 oc apply -f obj/03-node-exporter.yaml
-
 oc apply -f obj/04-kube-state-metrics.yaml
-
-#------
-TODO:
 
 #------
 NOTES: 
@@ -50,9 +55,8 @@ oc get pods -o wide
 watch -n 1 "echo '###pods';oc get pods; echo '###dc'; oc get dc; echo '###ds'; oc get ds; echo '###svc'; oc get svc; echo '###configmap'; oc get configmap; echo '###routes'; oc get routes"
 
 #-----
-FRAGEN: 
-- Warum muss eine dc vor dem redeploy geloescht werden
-- Warum exportiert KSM keine deployment-Metriken? 
+ISSUES:
+- k-s-m does not seem to export deployment metrics on openshift
 
 #-----
 Dashboards: 
@@ -67,6 +71,7 @@ O Kubernetes Pod Resources (#737)
   - Detaillierter als 3146, aber kein Templating auf Pods-Ebene
 O Kubernetes Pods (#3146)
   - nicht sehr detailliert, aber Templating auf Pod-Ebene
+  - bietet keinen Mehrwert zu K.Pod Resources
 O K8 Cluster Overview (#3870)
   - Labels angepasst 
 O Project Metrics with Limits (basierend auf 1471)
