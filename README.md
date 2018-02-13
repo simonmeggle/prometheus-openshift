@@ -18,14 +18,13 @@ see https://github.com/wkulhanek/openshift-prometheus/tree/master/node-exporter
 oc login -u system:admin
 oc new-project monitoring
 ```
-## ignore the project limits
+## optional: ignore the project limits
 ```
 # oc export limits default-limits -o yaml > default_limits.yaml
 oc delete limitrange default-limits
 # oc export quota default-quota -o yaml > deault_quota.yaml
 oc delete quota default-quota
 ```
-
 ## create service accounts
 ```
 oc create serviceaccount prometheus
@@ -33,7 +32,7 @@ oc create serviceaccount kube-state-metrics
 oc create serviceaccount grafana
 oc create serviceaccount node-exporter
 ```
-## optional
+## optional: make admin the cluster admin for a full overview with `oc get`
 ```
 oc adm policy add-cluster-role-to-user cluster-admin admin
 ```
@@ -43,7 +42,6 @@ oc adm policy add-scc-to-user anyuid -z prometheus
 oc adm policy add-scc-to-user anyuid -z grafana
 ```
 ## allow privileged execution of node-exporter
-
 ```
 oc adm policy add-scc-to-user privileged -z node-exporter
 ```
@@ -63,35 +61,63 @@ oc apply -f obj/02-grafana.yaml
 oc apply -f obj/03-node-exporter.yaml
 oc apply -f obj/04-kube-state-metrics.yaml
 ```
-# NOTES: 
+
+# Grafana dashboards
+## import dashboards
+To import the project's dashboards (see list below): 
+* Grafana-Button
+* "Dashboards"
+* "import"
+* "Paste JSON"
+
+## save dashboard adaptions
+Any change in the Grafana dashboards should be saved in Grafana as well as JSON: 
+* "Share Dashboard"
+* "Export"
+* "Save to file" (do *not* use "View JSON", because the data will contain all cluster internal data like node names, IP addresses, pod names etc. as well)
+* save to the file in `/dashboards`
+
+# some notes: 
+```
+# show events sorted
 oc get events --sort-by='.lastTimestamp'
+# show cluster wide objects
 oc get ds --all-namespaces
+# wide output
 oc get pods -o wide
+# poor man's oc dashboard
 watch -n 1 "echo '###pods';oc get pods; echo '###dc'; oc get dc; echo '###ds'; oc get ds; echo '###svc'; oc get svc; echo '###configmap'; oc get configmap; echo '###routes'; oc get routes"
+```
+# Issues
+* k-s-m does not seem to export deployment metrics on openshift
 
-#-----
-ISSUES:
-- k-s-m does not seem to export deployment metrics on openshift
+# Dashboard notes
+(X = not used, O = used)
 
-#-----
-Dashboards: 
+O `prometheus_20_stats.json` - Prometheus Stats 2.0 (from the Grafana-Project)
+
+O `kubernetes_pod_resources.json` - Kubernetes Pod Resources (#737)
+  - more detailled than #3146, but without Templating for pods 
+  
+O `kubernetes_openshift_cluster_overview_edited.json` - K8 Cluster Overview (#3870)
+  - adapted labels
+  
+O `kubernetes_project_metrics_w_limits.json` - Project Metrics with Limits (based on #1471)
+
+O `kubernetes_netstat.json` - Kubernetes Netstat  (#3259)
+  - very detailled
+  
+O `kubernetes_nodes.json` - Kubernetes Nodes (#3140)
+
+O `kubernetes_req_vs_all_resources.json` - Kubernetes requested vs. allocated Ressources (#3149)
+  - CPU/Memory allocation within Cluster 
+
 X Kubernetes Pod Metrics (#747)
-  - kube_pod_status_phase wird nicht richtig ausgewertet
+  - kube_pod_status_phase not evaluated correctly
   - Templating Namespace
+  
 X Kubernetes Deployment (#3137)
-  - kube-state-metrics liest keine deployment-Metriken aus
-
-O Prometheus Stats 2.0 (direkt von Grafana-Projekt)
-O Kubernetes Pod Resources (#737)
-  - Detaillierter als 3146, aber kein Templating auf Pods-Ebene
-O Kubernetes Pods (#3146)
-  - nicht sehr detailliert, aber Templating auf Pod-Ebene
-  - bietet keinen Mehrwert zu K.Pod Resources
-O K8 Cluster Overview (#3870)
-  - Labels angepasst 
-O Project Metrics with Limits (basierend auf 1471)
-O Kubernetes Netstat  (#3259)
-  - sehr umfangreiche Netzwerkstatistiken
-O Kubernetes Nodes (#3140)
-O Kubernetes requested vs. allocated Ressources (#3149)
-  - CPU/Memory allocation im Cluster 
+  - useless without deployment metrics from k-s-m
+  
+X Kubernetes Pods (#3146)
+  - not very detailled, but Templating for pods
