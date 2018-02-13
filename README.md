@@ -1,54 +1,69 @@
-OPENSHIFT 3.6.1 
-Prometheus 2.1.0  
-Grafana 4.6.3
-Kube-state-metrics 1.2.0
-Node-Exporter 0.15.2
+Monitoring OpenShift with Prometheus, Node-Exporter, Kube-State-Metrics / visualization by Grafana
 
+# Version overview
+This project was build upon the following components:
+* OpenShift 3.6.1 
+* Prometheus 2.1.0  
+* Grafana 4.6.3
+* Kube-state-metrics 1.2.0
+* Node-Exporter 0.15.2
 
-# Firewall 9100 (all nodes)
-# https://github.com/wkulhanek/openshift-prometheus/tree/master/node-exporter
+# Deployment steps
 
+## Firewall 
+see https://github.com/wkulhanek/openshift-prometheus/tree/master/node-exporter
 
+## setup project 
+```
 oc login -u system:admin
 oc new-project monitoring
-
-### ignore the project limits
+```
+## ignore the project limits
+```
 # oc export limits default-limits -o yaml > default_limits.yaml
 oc delete limitrange default-limits
 # oc export quota default-quota -o yaml > deault_quota.yaml
 oc delete quota default-quota
+```
 
-### create service accounts
+## create service accounts
+```
 oc create serviceaccount prometheus
 oc create serviceaccount kube-state-metrics
 oc create serviceaccount grafana
 oc create serviceaccount node-exporter
-
-### optional
+```
+## optional
+```
 oc adm policy add-cluster-role-to-user cluster-admin admin
-
-### allow containers to run with root user
+```
+## allow containers to run with root user
+```
 oc adm policy add-scc-to-user anyuid -z prometheus
 oc adm policy add-scc-to-user anyuid -z grafana
+```
+## allow privileged execution of node-exporter
 
-### allow privileged execution of node-exporter
+```
 oc adm policy add-scc-to-user privileged -z node-exporter
-
-### allow Prometheus and k-s-m to read cluster metrics
+```
+## allow Prometheus and k-s-m to read cluster metrics
+```
 oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:monitoring:prometheus
 oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:monitoring:kube-state-metrics
-
-### ignore the default node selector so that node-exporters can run on _every_ node
+```
+## ignore the default node selector so that node-exporters can run on _every_ node
+```
 oc annotate ns monitoring openshift.io/node-selector= --overwrite
-
-### ROLLOUT ###
+```
+## ROLLOUT ###
+```
 oc apply -f obj/01-prometheus.yaml
 oc apply -f obj/02-grafana.yaml
 oc apply -f obj/03-node-exporter.yaml
 oc apply -f obj/04-kube-state-metrics.yaml
-
-#------
-NOTES: 
+```
+# NOTES: 
 oc get events --sort-by='.lastTimestamp'
 oc get ds --all-namespaces
 oc get pods -o wide
