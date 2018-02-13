@@ -1369,5 +1369,5 @@
   },
   "timezone": "browser",
   "title": "Kubernetes Pod Resources",
-  "version": 2
+  "version": 4
 }

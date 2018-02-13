@@ -1076,11 +1076,11 @@
         "datasource": "${DS_PROMETHEUS}",
         "hide": 0,
         "includeAll": false,
-        "label": null,
+        "label": "Deployment",
         "multi": false,
         "name": "container",
         "options": [],
-        "query": "label_values(container_memory_usage_bytes{namespace=~\"$namespace\",container_name!=\"POD\"},container_name)",
+        "query": "label_values(container_memory_usage_bytes{namespace=~\"$namespace\",container_name!~\"(POD|deployment)\"},container_name)",
         "refresh": 1,
         "regex": "",
         "sort": 1,
@@ -1123,5 +1123,5 @@
   },
   "timezone": "browser",
   "title": "Project Metrics with Limits",
-  "version": 2
+  "version": 4
 }

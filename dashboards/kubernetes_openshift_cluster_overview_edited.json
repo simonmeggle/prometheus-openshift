@@ -6102,17 +6102,6 @@
       "showTitle": false,
       "title": "Pods per Node",
       "titleSize": "h6"
-    },
-    {
-      "collapse": false,
-      "height": 840,
-      "panels": [],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
-      "showTitle": false,
-      "title": "Openshift / Kubernetes Information",
-      "titleSize": "h6"
     }
   ],
   "schemaVersion": 14,
@@ -6152,5 +6141,5 @@
   },
   "timezone": "",
   "title": "Openshift/K8 Cluster Overview Edited",
-  "version": 2
+  "version": 3
 }
