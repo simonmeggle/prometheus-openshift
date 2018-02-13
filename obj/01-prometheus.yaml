@@ -203,6 +203,11 @@ items:
         relabel_configs:
         - action: labelmap
           regex: __meta_kubernetes_node_label_(.+)
+        - source_labels: [__meta_kubernetes_node_name]
+          action: replace
+          target_label: nodename
+          regex: (.+)
+
 
       # ------------------------------------------------------------------------------
       # kubernetes-service-endpoints
