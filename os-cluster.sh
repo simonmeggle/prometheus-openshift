@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# inspired by https://github.com/he1nh/openshift-prometheus
 
+echo "This script is not up to date with the other files in this project. Please refer to the README.md document which describes the step to set up the monitoring by hand."
+exit 1
 
 . .customvars.env
 
