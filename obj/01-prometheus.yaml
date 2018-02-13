@@ -12,7 +12,7 @@ items:
       - ReadWriteOnce
     resources:
       requests:
-        storage: '2Gi'
+        storage: '31Gi'
 - apiVersion: v1
   kind: DeploymentConfig
   metadata:
@@ -47,13 +47,13 @@ items:
           args:
           - --config.file=/etc/prometheus/prometheus.yml
           - --storage.tsdb.path=/prometheus
-          - --storage.tsdb.retention=1m
+          - --storage.tsdb.retention=31d
           ports:
           - containerPort: 9090
             protocol: TCP
           resources:
             limits:
-              memory: '2Gi'
+              memory: '8Gi'
             requests:
               memory: '1Gi'
           terminationMessagePath: /dev/termination-log
