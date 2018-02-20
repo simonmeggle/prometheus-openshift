@@ -1,7 +1,7 @@
 {
   "__inputs": [
     {
-      "name": "DS_PROMETHEUS",
+      "name": "prometheus",
       "label": "prometheus",
       "description": "",
       "type": "datasource",
@@ -42,7 +42,7 @@
       }
     ]
   },
-  "description": "Netstat Metrics for Kubernetes Cluster",
+  "description": "Netstat metrics for Kubernetes/Openshift cluster",
   "editable": true,
   "gnetId": 3259,
   "graphTooltip": 0,
@@ -60,7 +60,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "fill": 1,
           "id": 6,
           "legend": {
@@ -305,7 +305,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "fill": 1,
           "id": 7,
           "legend": {
@@ -442,7 +442,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "fill": 1,
           "id": 8,
           "legend": {
@@ -606,7 +606,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "fill": 1,
           "id": 16,
           "legend": {
@@ -707,7 +707,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "fill": 1,
           "id": 9,
           "legend": {
@@ -925,7 +925,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "decimals": 0,
           "fill": 1,
           "id": 10,
@@ -1189,7 +1189,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "decimals": 0,
           "fill": 1,
           "id": 11,
@@ -1435,7 +1435,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "decimals": 0,
           "fill": 1,
           "id": 12,
@@ -1708,7 +1708,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "decimals": 0,
           "fill": 1,
           "id": 13,
@@ -1972,7 +1972,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "decimals": 0,
           "fill": 1,
           "id": 14,
@@ -2236,7 +2236,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "decimals": 0,
           "fill": 1,
           "id": 15,
@@ -2473,7 +2473,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "decimals": 0,
           "fill": 1,
           "id": 17,
@@ -2629,7 +2629,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": "prometheus",
           "decimals": 0,
           "fill": 1,
           "id": 18,
@@ -2780,14 +2780,15 @@
   "schemaVersion": 14,
   "style": "dark",
   "tags": [
-    "netstat"
+    "kubernetes",
+    "openshift"
   ],
   "templating": {
     "list": [
       {
         "allValue": null,
         "current": {},
-        "datasource": "${DS_PROMETHEUS}",
+        "datasource": "prometheus",
         "hide": 0,
         "includeAll": false,
         "label": null,
@@ -2807,7 +2808,7 @@
     ]
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {
@@ -2836,6 +2837,6 @@
     ]
   },
   "timezone": "browser",
-  "title": "Kubernetes Netstat",
+  "title": "Netstat",
   "version": 1
 }

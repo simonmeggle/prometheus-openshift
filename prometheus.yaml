@@ -1,0 +1,612 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: prometheus
+  annotations:
+    "openshift.io/display-name": "ConSol Openshift Monitoring"
+    description: |
+      A monitoring solution for an OpenShift cluster - collect and gather metrics and alerts from nodes, services, and the infrastructure.
+    iconClass: fa fa-cogs
+    tags: "monitoring,prometheus,alertmanager,time-series"
+parameters:
+# General
+- description: The namespace to instantiate the monitoring system under. Defaults to 'kube-system'.
+  name: NAMESPACE
+  value: kube-system
+# Prometheus
+- description: The location of the prometheus image.
+  name: IMAGE_PROMETHEUS
+  value: prom/prometheus:v2.1.0
+- description: Size of the persistent volume for prometheus. Defaults to '10Gi'.
+  name: VOLUMESIZE_PROMETHEUS
+  value: 10Gi
+- description: Memory limit for Prometheus. Defaults to '8Gi'.
+  name: LIMITMEMORY_PROMETHEUS
+  value: 8Gi
+- description: Requested memory for Prometheus. Defaults to '1Gi'
+  name: REQMEMORY_PROMETHEUS
+  value: 1Gi
+
+# kube-state-metrics
+- description: The location of the kube-state-metrics image.
+  name: IMAGE_KUBESTATEMETRICS
+  value: k8s.gcr.io/kube-state-metrics:v1.2.0
+
+# Grafana
+- description: The location of the grafana image.
+  name: IMAGE_GRAFANA
+  value: grafana/grafana:5.0.0-beta4
+- description: Size of the persistent volume for prometheus
+  name: VOLUMESIZE_GRAFANA
+  value: 100Mi
+- description: Memory limit for Grafana. Defaults to '1Gi'.
+  name: LIMITMEMORY_GRAFANA
+  value: 1Gi
+- description: Requested memory for Grafana. Defaults to '512Mi'
+  name: REQMEMORY_GRAFANA
+  value: 512Mi
+
+# TODO:
+# - remove prometheus route?
+# - add remote_write for prometheus?
+# - can storage limits/requests be calculated?
+# - add alertmanager or add parameter to specify an alertmanager url?
+# - are labels correct?
+# - parameters for grafana credentials?
+
+objects:
+##############################################################################################
+#
+# Prometheus
+#
+##############################################################################################
+# service account with role cluster-reader
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: prometheus
+    namespace: "${NAMESPACE}"
+- apiVersion: authorization.openshift.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    name: prometheus-cluster-reader
+  roleRef:
+    name: cluster-reader
+  subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: "${NAMESPACE}"
+
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    name: prometheus
+    namespace: "${NAMESPACE}"
+  spec:
+    port:
+      targetPort: 9090
+    to:
+      kind: Service
+      name: prometheus
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: prometheus
+    namespace: "${NAMESPACE}"
+  spec:
+    ports:
+    - name: prometheus
+      port: 9090
+      protocol: TCP
+      targetPort: 9090
+    selector:
+      name: prometheus
+
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: pvc-prometheus
+    namespace: "${NAMESPACE}"
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: "${VOLUMESIZE_PROMETHEUS}"
+
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: prometheus
+    namespace: "${NAMESPACE}"
+  spec:
+    replicas: 1
+    selector:
+      name: prometheus
+    template:
+      metadata:
+        labels:
+          name: prometheus
+      spec:
+        serviceAccount: prometheus
+        serviceAccountName: prometheus
+        containers:
+        - name: prometheus
+          image: "${IMAGE_PROMETHEUS}"
+          imagePullPolicy: IfNotPresent
+          args:
+          - --config.file=/etc/prometheus/prometheus.yml
+          - --storage.tsdb.path=/prometheus
+          - --storage.tsdb.retention=31d
+          ports:
+          - containerPort: 9090
+          resources:
+            limits:
+              memory: "${LIMITMEMORY_PROMETHEUS}"
+            requests:
+              memory: "${REQMEMORY_PROMETHEUS}"
+          volumeMounts:
+          - mountPath: /etc/prometheus
+            name: config-prometheus
+          - mountPath: '/prometheus'
+            name: data-prometheus
+        restartPolicy: Always
+        volumes:
+        - name: config-prometheus
+          configMap:
+            defaultMode: 420
+            name: configmap-prometheus
+        - name: data-prometheus
+          persistentVolumeClaim:
+            claimName: pvc-prometheus
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: configmap-prometheus
+    namespace: "${NAMESPACE}"
+  data:
+    alerting.rules: |
+      groups:
+      - name: example-rules
+        interval: 30s # defaults to global interval
+        rules:
+        - alert: Node Down
+          expr: up{job="kubernetes-nodes"} == 0
+          annotations:
+            miqTarget: "ContainerNode"
+            severity: "HIGH"
+            message: "{{$labels.instance}} is down"
+
+    recording.rules: |
+      groups:
+      - name: aggregate_container_resources
+        rules:
+        - record: container_cpu_usage_rate
+          expr: sum without (cpu) (rate(container_cpu_usage_seconds_total[5m]))
+        - record: container_memory_rss_by_type
+          expr: container_memory_rss{id=~"/|/system.slice|/kubepods.slice"} > 0
+        - record: container_cpu_usage_percent_by_host
+          expr: sum by (hostname,type)(rate(container_cpu_usage_seconds_total{id="/"}[5m])) / on (hostname,type) machine_cpu_cores
+        - record: apiserver_request_count_rate_by_resources
+          expr: sum without (client,instance,contentType) (rate(apiserver_request_count[5m]))
+
+    prometheus.yml: |
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 30s
+        scrape_timeout: 10s
+        # Attach these labels to any time series or alerts when communicating with
+        # external systems (federation, remote storage, Alertmanager).
+        external_labels:
+            monitor: "prometheus_${NAMESPACE}"
+
+      rule_files:
+        - '*.rules'
+
+      scrape_configs:
+      # ------------------------------------------------------------------------------
+      # PROMETHEUS
+      # scrape config for Prometheus itself.
+      - job_name: 'prometheus'
+        metrics_path: '/metrics'
+        scheme: http
+        static_configs:
+        - targets: ['localhost:9090']
+
+      # ------------------------------------------------------------------------------
+      # kubernetes-apiservers
+      # Kubernetes exposes API servers as endpoints to the default/kubernetes
+      # service so this uses `endpoints` role and uses relabelling to only keep
+      # the endpoints associated with the default/kubernetes service using the
+      # default named port `https`. This works for single API server deployments as
+      # well as HA API server deployments.
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+        - role: endpoints
+        # Default to scraping over https. If required, just disable this or change to
+        # `http`.
+        scheme: https
+        # This TLS & bearer token file config is used to connect to the actual scrape
+        # endpoints for cluster components. This is separate to discovery auth
+        # configuration because discovery & scraping are two separate concerns in
+        # Prometheus. The discovery auth config is automatic if Prometheus runs inside
+        # the cluster. Otherwise, more config options have to be provided within the
+        # <kubernetes_sd_config>.
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          # If your node certificates are self-signed or use a different CA to the
+          # master CA, then disable certificate verification below. Note that
+          # certificate verification is an integral part of a secure infrastructure
+          # so this should only be disabled in a controlled environment. You can
+          # disable certificate verification by uncommenting the line below.
+          #
+          # insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        # Keep only the default/kubernetes service endpoints for the https port. This
+        # will add targets for each API server which Kubernetes adds an endpoint to
+        # the default/kubernetes service.
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+          action: keep
+          regex: default;kubernetes;https
+
+      # ------------------------------------------------------------------------------
+      # kubernetes-nodes
+      # Rather than connecting directly to the node, the scrape is proxied though the
+      # Kubernetes apiserver.  This means it will work if Prometheus is running out of
+      # cluster, or can't connect to nodes for some other reason (e.g. because of
+      # firewalling).
+      # !!! Note: using relabelings from https://github.com/prometheus/prometheus/blob/master/documentation/examples/prometheus-kubernetes.yml
+      # does not work: Nodes are scraped then on the haproxy URL which needs authentication.  
+      - job_name: 'kubernetes-nodes'
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+        - role: node
+        relabel_configs:
+        - action: labelmap
+          regex: __meta_kubernetes_node_label_(.+)
+
+      # ------------------------------------------------------------------------------
+      # kubernetes-service-endpoints
+      # The relabeling allows the actual service scrape endpoint to be configured
+      # via the following annotations:
+      #
+      # * `prometheus.io/scrape`: Only scrape services that have a value of `true`
+      # * `prometheus.io/scheme`: If the metrics endpoint is secured then you will need
+      # to set this to `https` & most likely set the `tls_config` of the scrape config.
+      # * `prometheus.io/path`: If the metrics path is not `/metrics` override this.
+      # * `prometheus.io/port`: If the metrics are exposed on a different port to the
+      # service then set this appropriately.
+      - job_name: 'kubernetes-service-endpoints'
+        kubernetes_sd_configs:
+        - role: endpoints
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        #FIXME router/haproxy metrics dropped for now due to authentication problems
+        - source_labels: [__meta_kubernetes_endpoints_name]
+          action: drop
+          regex: (router.*)
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+          action: replace
+          target_label: __scheme__
+          regex: (https?)
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+          action: replace
+          target_label: __address__
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+        - action: labelmap
+          regex: __meta_kubernetes_service_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_service_name]
+          action: replace
+          target_label: kubernetes_name
+
+      # ------------------------------------------------------------------------------
+      # kubernetes-services
+      # Example scrape config for probing services via the Blackbox Exporter.
+      #
+      # The relabeling allows the actual service scrape endpoint to be configured
+      # via the following annotations:
+      #
+      # * `prometheus.io/probe`: Only probe services that have a value of `true`
+      - job_name: 'kubernetes-services'
+        metrics_path: /probe
+        params:
+          module: [http_2xx]
+        kubernetes_sd_configs:
+        - role: service
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_probe]
+          action: keep
+          regex: true
+        - source_labels: [__address__]
+          target_label: __param_target
+        - target_label: __address__
+          replacement: blackbox-exporter.example.com:9115
+        - source_labels: [__param_target]
+          target_label: instance
+        - action: labelmap
+          regex: __meta_kubernetes_service_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_service_name]
+          target_label: kubernetes_name
+
+      # ------------------------------------------------------------------------------
+      # kubernetes-pods
+      # The relabeling allows the actual pod scrape endpoint to be configured via the
+      # following annotations:
+      #
+      # * `prometheus.io/scrape`: Only scrape pods that have a value of `true`
+      # * `prometheus.io/path`: If the metrics path is not `/metrics` override this.
+      # * `prometheus.io/port`: Scrape the pod on the indicated port instead of the
+      # pod's declared ports (default is a port-free target if none are declared).
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+
+##############################################################################################
+#
+# Grafana
+#
+##############################################################################################
+# This is based upon the findings from http://widerin.net/blog/official-grafana-docker-image-on-openshift/
+# - adding a configmap for grafana.ini
+# - starting the docker image with custom "command" and "args"
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: grafana
+    namespace: "${NAMESPACE}"
+
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    name: grafana
+    namespace: "${NAMESPACE}"
+  spec:
+    port:
+      targetPort: 3000
+    to:
+      kind: Service
+      name: grafana
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: grafana
+    namespace: "${NAMESPACE}"
+  spec:
+    ports:
+    - name: grafana
+      port: 3000
+      targetPort: 3000
+    selector:
+      name: grafana
+
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: pvc-grafana
+    namespace: "${NAMESPACE}"
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: "${VOLUMESIZE_GRAFANA}"
+
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: grafana
+    namespace: "${NAMESPACE}"
+  spec:
+    replicas: 1
+    selector:
+      name: grafana
+    template:
+      metadata:
+        labels:
+          name: grafana
+      spec:
+        serviceAccount: grafana
+        serviceAccountName: grafana
+        containers:
+        - name: grafana
+          image: ${IMAGE_GRAFANA}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            - name: GF_AUTH_BASIC_ENABLED
+              value: "true"
+          command:
+          - /usr/sbin/grafana-server
+          args:
+          - '--homepath=/usr/share/grafana'
+          - '--config=/etc/grafana/grafana.ini'
+          ports:
+          - containerPort: 3000
+          resources:
+            limits:
+              memory: "${LIMITMEMORY_GRAFANA}"
+            requests:
+              memory: "${REQMEMORY_GRAFANA}"
+          volumeMounts:
+          - mountPath: /etc/grafana
+            name: config-grafana
+          - mountPath: /var/lib/grafana
+            name: data-grafana
+          - mountPath: /dashboards
+            name: dashboards-grafana
+          #- mountPath: /var/log/grafana
+          #  name: log-grafana
+          restartPolicy: Always
+        volumes:
+        - name: config-grafana
+          configMap:
+            defaultMode: 420
+            name: configmap-grafana
+            items:
+            - key: grafana.ini
+              path: grafana.ini
+            - key: datasource.yaml
+              path: provisioning/datasources/datasource.yaml
+            - key: dashboard.yaml
+              path: provisioning/dashboards/dashboard.yaml
+        #- name: log-grafana
+        #  emptyDir: {}
+        - name: data-grafana
+          persistentVolumeClaim:
+            claimName: pvc-grafana
+        - name: dashboards-grafana
+          configMap:
+            name: dashboards-grafana
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: configmap-grafana
+    namespace: "${NAMESPACE}"
+  data:
+    grafana.ini: |
+      [paths]
+      data = /var/lib/grafana
+      plugins = /var/lib/grafana/plugins
+      provisioning = /etc/grafana/provisioning
+      #logs = /var/log/grafana
+      
+      [log]
+      mode = console
+      
+      [security]
+      admin_user = root
+      admin_password = secret
+
+    datasource.yaml: |
+      datasources:
+      - name: prometheus
+        type: prometheus
+        access: proxy
+        org_id: 1
+        url: http://prometheus.${NAMESPACE}.svc.cluster.local:9090/
+        password:
+        user:
+        database:
+        basic_auth:
+        basic_auth_user:
+        basic_auth_password:
+        with_credentials:
+        is_default: false
+        version: 1
+        editable: true
+      
+    dashboard.yaml: |
+      - name: 'default'
+        org_id: 1
+        folder: ''
+        type: file
+        options:
+          folder: /dashboards
+
+##############################################################################################
+#
+# kube-state-metrics
+#
+##############################################################################################
+# kube-state-metrics service account with role cluster-reader
+- apiVersion: v1  
+  kind: ServiceAccount
+  metadata:
+    name: kube-state-metrics
+    namespace: "${NAMESPACE}"
+- apiVersion: authorization.openshift.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    name: kube-state-metrics-cluster-reader
+  roleRef:
+    name: cluster-reader
+  subjects:
+  - kind: ServiceAccount
+    name: kube-state-metrics
+    namespace: "${NAMESPACE}"
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: kube-state-metrics
+    namespace: "${NAMESPACE}"
+    annotations:
+      prometheus.io/scrape: 'true'
+      prometheus.io/port: '8080'
+  spec:
+    ports:
+    - name: kube-state-metrics
+      port: 8080
+      targetPort: 8080
+    selector:
+      name: kube-state-metrics
+
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: kube-state-metrics
+    namespace: "${NAMESPACE}"
+  spec:
+    replicas: 1
+    selector:
+      name: kube-state-metrics
+    template:
+      metadata:
+        labels:
+          name: kube-state-metrics
+      spec:
+        serviceAccount: kube-state-metrics
+        serviceAccountName: kube-state-metrics
+        containers:
+        - name: kube-state-metrics
+          image: ${IMAGE_KUBESTATEMETRICS}
+          imagePullPolicy: IfNotPresent
+          args:
+          - --telemetry-host=0.0.0.0
+          - --telemetry-port=8181
+          ports:
+          - containerPort: 8080
+
+

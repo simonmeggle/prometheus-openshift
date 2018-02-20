@@ -1,0 +1,420 @@
+{
+    "apiVersion": "v1",
+    "kind": "Template",
+    "metadata": {
+        "annotations": {
+            "description": "A monitoring solution for an OpenShift cluster - collect and gather metrics and alerts from nodes, services, and the infrastructure. This is a tech preview feature.\n",
+            "iconClass": "fa fa-cogs",
+            "openshift.io/display-name": "Prometheus",
+            "tags": "monitoring,prometheus,alertmanager,time-series"
+        },
+        "creationTimestamp": "2018-02-19T15:46:20Z",
+        "name": "prometheus",
+        "namespace": "myproject",
+        "resourceVersion": "2560",
+        "selfLink": "/oapi/v1/namespaces/myproject/templates/prometheus",
+        "uid": "07fde56b-158c-11e8-afa2-36c243ec2dcd"
+    },
+    "objects": [
+        {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "${NAMESPACE}"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "ServiceAccount",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "kube-state-metrics",
+                "namespace": "${NAMESPACE}"
+            }
+        },
+        {
+            "apiVersion": "authorization.openshift.io/v1",
+            "kind": "ClusterRoleBinding",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "kube-state-metrics-cluster-reader"
+            },
+            "roleRef": {
+                "name": "cluster-reader"
+            },
+            "subjects": [
+                {
+                    "kind": "ServiceAccount",
+                    "name": "kube-state-metrics",
+                    "namespace": "${NAMESPACE}"
+                }
+            ]
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "ServiceAccount",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "prometheus",
+                "namespace": "${NAMESPACE}"
+            }
+        },
+        {
+            "apiVersion": "authorization.openshift.io/v1",
+            "kind": "ClusterRoleBinding",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "prometheus-cluster-reader"
+            },
+            "roleRef": {
+                "name": "cluster-reader"
+            },
+            "subjects": [
+                {
+                    "kind": "ServiceAccount",
+                    "name": "prometheus",
+                    "namespace": "${NAMESPACE}"
+                }
+            ]
+        },
+        {
+            "apiVersion": "route.openshift.io/v1",
+            "kind": "Route",
+            "metadata": {
+                "name": "prometheus",
+                "namespace": "${NAMESPACE}"
+            },
+            "spec": {
+                "port": {
+                    "targetPort": 9090
+                },
+                "to": {
+                    "kind": "Service",
+                    "name": "prometheus"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "prometheus",
+                "namespace": "${NAMESPACE}"
+            },
+            "spec": {
+                "ports": [
+                    {
+                        "name": "prometheus",
+                        "port": 9090,
+                        "protocol": "TCP",
+                        "targetPort": 9090
+                    }
+                ],
+                "selector": {
+                    "app": "prometheus"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "pvc-prometheus"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "31Gi"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "DeploymentConfig",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "prometheus",
+                "namespace": "${NAMESPACE}"
+            },
+            "spec": {
+                "podManagementPolicy": "Parallel",
+                "selector": {
+                    "matchLabels": {
+                        "app": "${NAMESPACE}"
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "${NAMESPACE}"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "args": [
+                                    "--config.file=/etc/prometheus/prometheus.yml",
+                                    "--storage.tsdb.path=/prometheus",
+                                    "--storage.tsdb.retention=31d"
+                                ],
+                                "image": "${IMAGE_PROMETHEUS}",
+                                "imagePullPolicy": "IfNotPresent",
+                                "name": "prometheus",
+                                "ports": [
+                                    {
+                                        "containerPort": 9090
+                                    }
+                                ],
+                                "resources": {
+                                    "limits": {
+                                        "memory": "8Gi"
+                                    },
+                                    "requests": {
+                                        "memory": "1Gi"
+                                    }
+                                },
+                                "volumeMounts": [
+                                    {
+                                        "mountPath": "/etc/prometheus",
+                                        "name": "config-prometheus"
+                                    },
+                                    {
+                                        "mountPath": "/prometheus",
+                                        "name": "pvc-prometheus"
+                                    }
+                                ]
+                            }
+                        ],
+                        "restartPolicy": "Always",
+                        "serviceAccount": "prometheus",
+                        "serviceAccountName": "prometheus",
+                        "volumes": [
+                            {
+                                "configMap": {
+                                    "name": "configmap-prometheus"
+                                },
+                                "name": "config-prometheus"
+                            },
+                            {
+                                "name": "pvc-prometheus",
+                                "persistentVolumeClaim": {
+                                    "claimName": "pvc-prometheus"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "updateStrategy": {
+                    "type": "RollingUpdate"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "data": {
+                "alerting.rules": "groups:\n- name: example-rules\n  interval: 30s # defaults to global interval\n  rules:\n  - alert: Node Down\n    expr: up{job=\"kubernetes-nodes\"} == 0\n    annotations:\n      miqTarget: \"ContainerNode\"\n      severity: \"HIGH\"\n      message: \"{{$labels.instance}} is down\"\n",
+                "prometheus.yml": "global:\n  scrape_interval:     15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.\n  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.\n  scrape_timeout: 10s      # equals global default\n\n  # Attach these labels to any time series or alerts when communicating with\n  # external systems (federation, remote storage, Alertmanager).\n  external_labels:\n      monitor: 'TODO_EXTERNAL_LABEL'\n\nscrape_configs:\n# ------------------------------------------------------------------------------\n# PROMETHEUS\n# scrape config for Prometheus itself.\n- job_name: 'prometheus'\n  metrics_path: '/metrics'\n  scheme: http\n  static_configs:\n  - targets: ['localhost:9090']\n# ------------------------------------------------------------------------------\n# kubernetes-apiservers\n# Kubernetes exposes API servers as endpoints to the default/kubernetes\n# service so this uses `endpoints` role and uses relabelling to only keep\n# the endpoints associated with the default/kubernetes service using the\n# default named port `https`. This works for single API server deployments as\n# well as HA API server deployments.\n- job_name: 'kubernetes-apiservers'\n\n  kubernetes_sd_configs:\n  - role: endpoints\n\n  # Default to scraping over https. If required, just disable this or change to\n  # `http`.\n  scheme: https\n\n  # This TLS \u0026 bearer token file config is used to connect to the actual scrape\n  # endpoints for cluster components. This is separate to discovery auth\n  # configuration because discovery \u0026 scraping are two separate concerns in\n  # Prometheus. The discovery auth config is automatic if Prometheus runs inside\n  # the cluster. Otherwise, more config options have to be provided within the\n  # \u003ckubernetes_sd_config\u003e.\n  tls_config:\n    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n    # If your node certificates are self-signed or use a different CA to the\n    # master CA, then disable certificate verification below. Note that\n    # certificate verification is an integral part of a secure infrastructure\n    # so this should only be disabled in a controlled environment. You can\n    # disable certificate verification by uncommenting the line below.\n    #\n    # insecure_skip_verify: true\n  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token\n\n  # Keep only the default/kubernetes service endpoints for the https port. This\n  # will add targets for each API server which Kubernetes adds an endpoint to\n  # the default/kubernetes service.\n  relabel_configs:\n  - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]\n    action: keep\n    regex: default;kubernetes;https\n# ------------------------------------------------------------------------------\n# kubernetes-nodes\n# Rather than connecting directly to the node, the scrape is proxied though the\n# Kubernetes apiserver.  This means it will work if Prometheus is running out of\n# cluster, or can't connect to nodes for some other reason (e.g. because of\n# firewalling).\n# !!! Note: using relabelings from https://github.com/prometheus/prometheus/blob/master/documentation/examples/prometheus-kubernetes.yml\n# does not work: Nodes are scraped then on the haproxy URL which needs authentication.  \n- job_name: 'kubernetes-nodes'\n  scheme: https\n  tls_config:\n    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token\n\n  kubernetes_sd_configs:\n  - role: node\n\n  relabel_configs:\n  - action: labelmap\n    regex: __meta_kubernetes_node_label_(.+)\n\n# ------------------------------------------------------------------------------\n# kubernetes-service-endpoints\n# The relabeling allows the actual service scrape endpoint to be configured\n# via the following annotations:\n#\n# * `prometheus.io/scrape`: Only scrape services that have a value of `true`\n# * `prometheus.io/scheme`: If the metrics endpoint is secured then you will need\n# to set this to `https` \u0026 most likely set the `tls_config` of the scrape config.\n# * `prometheus.io/path`: If the metrics path is not `/metrics` override this.\n# * `prometheus.io/port`: If the metrics are exposed on a different port to the\n# service then set this appropriately.\n- job_name: 'kubernetes-service-endpoints'\n\n  kubernetes_sd_configs:\n  - role: endpoints\n\n  relabel_configs:\n  - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]\n    action: keep\n    regex: true\n  #TODO router/haproxy metrics drped for now due to authentication problems\n  - source_labels: [__meta_kubernetes_endpoints_name]\n    action: drop\n    regex: (router.*)\n  - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]\n    action: replace\n    target_label: __scheme__\n    regex: (https?)\n  - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]\n    action: replace\n    target_label: __metrics_path__\n    regex: (.+)\n  - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]\n    action: replace\n    target_label: __address__\n    regex: ([^:]+)(?::\\d+)?;(\\d+)\n    replacement: $1:$2\n  - action: labelmap\n    regex: __meta_kubernetes_service_label_(.+)\n  - source_labels: [__meta_kubernetes_namespace]\n    action: replace\n    target_label: kubernetes_namespace\n  - source_labels: [__meta_kubernetes_service_name]\n    action: replace\n    target_label: kubernetes_name\n\n# ------------------------------------------------------------------------------\n# kubernetes-services\n# Example scrape config for probing services via the Blackbox Exporter.\n#\n# The relabeling allows the actual service scrape endpoint to be configured\n# via the following annotations:\n#\n# * `prometheus.io/probe`: Only probe services that have a value of `true`\n- job_name: 'kubernetes-services'\n\n  metrics_path: /probe\n  params:\n    module: [http_2xx]\n\n  kubernetes_sd_configs:\n  - role: service\n\n  relabel_configs:\n  - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_probe]\n    action: keep\n    regex: true\n  - source_labels: [__address__]\n    target_label: __param_target\n  - target_label: __address__\n    replacement: blackbox-exporter.example.com:9115\n  - source_labels: [__param_target]\n    target_label: instance\n  - action: labelmap\n    regex: __meta_kubernetes_service_label_(.+)\n  - source_labels: [__meta_kubernetes_namespace]\n    target_label: kubernetes_namespace\n  - source_labels: [__meta_kubernetes_service_name]\n    target_label: kubernetes_name\n# ------------------------------------------------------------------------------\n# kubernetes-pods\n# The relabeling allows the actual pod scrape endpoint to be configured via the\n# following annotations:\n#\n# * `prometheus.io/scrape`: Only scrape pods that have a value of `true`\n# * `prometheus.io/path`: If the metrics path is not `/metrics` override this.\n# * `prometheus.io/port`: Scrape the pod on the indicated port instead of the\n# pod's declared ports (default is a port-free target if none are declared).\n- job_name: 'kubernetes-pods'\n\n  kubernetes_sd_configs:\n  - role: pod\n\n  relabel_configs:\n  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]\n    action: keep\n    regex: true\n  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]\n    action: replace\n    target_label: __metrics_path__\n    regex: (.+)\n  - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]\n    action: replace\n    regex: ([^:]+)(?::\\d+)?;(\\d+)\n    replacement: $1:$2\n    target_label: __address__\n  - action: labelmap\n    regex: __meta_kubernetes_pod_label_(.+)\n  - source_labels: [__meta_kubernetes_namespace]\n    action: replace\n    target_label: kubernetes_namespace\n  - source_labels: [__meta_kubernetes_pod_name]\n    action: replace\n    target_label: kubernetes_pod_name\n",
+                "recording.rules": "groups:\n- name: aggregate_container_resources\n  rules:\n  - record: container_cpu_usage_rate\n    expr: sum without (cpu) (rate(container_cpu_usage_seconds_total[5m]))\n  - record: container_memory_rss_by_type\n    expr: container_memory_rss{id=~\"/|/system.slice|/kubepods.slice\"} \u003e 0\n  - record: container_cpu_usage_percent_by_host\n    expr: sum by (hostname,type)(rate(container_cpu_usage_seconds_total{id=\"/\"}[5m])) / on (hostname,type) machine_cpu_cores\n  - record: apiserver_request_count_rate_by_resources\n    expr: sum without (client,instance,contentType) (rate(apiserver_request_count[5m]))\n"
+            },
+            "kind": "ConfigMap",
+            "metadata": {
+                "name": "configmap-prometheus"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "ServiceAccount",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "grafana",
+                "namespace": "${NAMESPACE}"
+            }
+        },
+        {
+            "apiVersion": "route.openshift.io/v1",
+            "kind": "Route",
+            "metadata": {
+                "name": "grafana",
+                "namespace": "${NAMESPACE}"
+            },
+            "spec": {
+                "port": {
+                    "targetPort": 3000
+                },
+                "to": {
+                    "kind": "Service",
+                    "name": "grafana"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "grafana",
+                "namespace": "${NAMESPACE}"
+            },
+            "spec": {
+                "ports": [
+                    {
+                        "name": "grafana",
+                        "port": 3000,
+                        "protocol": "TCP",
+                        "targetPort": 3000
+                    }
+                ],
+                "selector": {
+                    "app": "grafana"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "pvc-grafana"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "200Mi"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "DeploymentConfig",
+            "metadata": {
+                "labels": {
+                    "app": "${NAMESPACE}"
+                },
+                "name": "grafana",
+                "namespace": "${NAMESPACE}"
+            },
+            "spec": {
+                "podManagementPolicy": "Parallel",
+                "selector": {
+                    "matchLabels": {
+                        "app": "${NAMESPACE}"
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "${NAMESPACE}"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "args": [
+                                    "--config.file=/etc/prometheus/prometheus.yml",
+                                    "--storage.tsdb.path=/prometheus",
+                                    "--storage.tsdb.retention=31d"
+                                ],
+                                "env": [
+                                    {
+                                        "name": "GF_AUTH_BASIC_ENABLED",
+                                        "value": "true"
+                                    },
+                                    {
+                                        "name": "GF_AUTH_ANONYMOUS_ENABLED",
+                                        "value": "false"
+                                    }
+                                ],
+                                "image": "${IMAGE_GRAFANA}",
+                                "imagePullPolicy": "IfNotPresent",
+                                "name": "grafana",
+                                "ports": [
+                                    {
+                                        "containerPort": 3000
+                                    }
+                                ],
+                                "resources": {
+                                    "limits": {
+                                        "memory": "2Gi"
+                                    },
+                                    "requests": {
+                                        "memory": "512Mi"
+                                    }
+                                },
+                                "restartPolicy": "Always",
+                                "volumeMounts": [
+                                    {
+                                        "mountPath": "/var/lib/grafana",
+                                        "name": "pvc-grafana"
+                                    }
+                                ]
+                            }
+                        ],
+                        "serviceAccount": "grafana",
+                        "serviceAccountName": "grafana",
+                        "volumes": [
+                            {
+                                "name": "pvc-grafana",
+                                "persistentVolumeClaim": {
+                                    "claimName": "pvc-grafana"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "updateStrategy": {
+                    "type": "RollingUpdate"
+                }
+            }
+        }
+    ],
+    "parameters": [
+        {
+            "description": "The namespace to instantiate prometheus under. Defaults to 'openshift-monitoring'.",
+            "name": "NAMESPACE",
+            "value": "openshift-monitoring"
+        },
+        {
+            "description": "The location of the prometheus image",
+            "name": "IMAGE_PROMETHEUS",
+            "value": "prom/prometheus:v2.1.0"
+        },
+        {
+            "description": "The location of the grafana image",
+            "name": "IMAGE_GRAFANA",
+            "value": "grafana/grafana:4.6.3"
+        }
+    ]
+}
