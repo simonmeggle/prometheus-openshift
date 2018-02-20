@@ -10,23 +10,6 @@ items:
     name: prometheus-node-exporter
   # You must grant hostaccess via: oadm policy add-scc-to-user -z prometheus-node-exporter hostaccess
   # in order for the node-exporter to access the host network and mount /proc and /sys from the host
-- apiVersion: v1
-  kind: Service
-  metadata:
-    annotations:
-      prometheus.io/scrape: "true"
-    labels:
-      app: prometheus-node-exporter
-    name: prometheus-node-exporter
-  spec:
-    clusterIP: None
-    ports:
-    - name: scrape
-      port: 9100
-      protocol: TCP
-      targetPort: 9100
-    selector:
-      app: prometheus-node-exporter
 - apiVersion: extensions/v1beta1
   kind: DaemonSet
   metadata:
@@ -40,9 +23,11 @@ items:
     template:
       metadata:
         labels:
-          app: prometheus-node-exporter
-          role: monitoring
-        name: prometheus-exporter
+          name: prometheus-node-exporter
+        name: prometheus-node-exporter
+        annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "9100"
       spec:
         serviceAccountName: prometheus-node-exporter
         hostNetwork: true
@@ -52,7 +37,9 @@ items:
           args:
           - "--path.procfs=/host/proc"
           - "--path.sysfs=/host/sys"
-          name: node-exporter
+          - "--collector.filesystem.ignored-mount-points"
+          - "^/(rootfs/)?(sys|proc|dev|host|etc|var|run).*"
+          name: prometheus-node-exporter
           ports:
           - containerPort: 9100
             name: scrape
