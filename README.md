@@ -5,7 +5,7 @@ This project was build upon the following components:
 * OpenShift 3.7.1 
 * Prometheus 2.1.0  
 * Grafana 5.0.0-beta4
-* Kube-state-metrics 1.2.0
+* Kube-state-metrics 1.1.0
 * Node-Exporter 0.15.2
 
 # Testing on minishift
@@ -94,21 +94,18 @@ cd /var/lib/minishift/openshift.local.pv
 ```
 
 # FIXME
-* [] k-s-m does not seem to export deployment metrics on openshift
-* [] k-s-m filesystem usage contnually grows
-* [] "[Deprecated] the datasource provisioning config is outdated. please upgrade" logger=provisioning.datasources filename=/etc/grafana/provisioning/datasources/datasource.yaml
-* [] "[Deprecated] the dashboard provisioning config is outdated. please upgrade" logger=provisioning.dashboard filename=/etc/grafana/provisioning/dashboards/dashboard.yaml
-* [] "[Deprecated] The folder property is deprecated. Please use path instead." logger=provisioning.dashboard type=file
-* [] check dashboad "cluster overview"
-* [] check rule evaluation and its graph on the prometheus dashboard
-* [] check dashboard "pod": container_network_receive_bytes_total missing
+* k-s-m does not seem to export deployment metrics on openshift
+* k-s-m does not provide kube_resourcequota used in dashboard "Cluster overview"
+* check rule evaluation and its graph on the prometheus dashboard
 
 # TODO
-* [] document template variables in readme
-* [] add remote_write for prometheus?
-* [] can storage limits/requests be calculated?
-* [] add alertmanager or add parameter to specify an alertmanager url?
-* [] parameters for grafana credentials?
-* [] redeploy on configmap change
-* [] easier configmap changes
-* [] oauth proxies for grafana/prometheus
+* livenessProbe and/or readinessProbe
+* Add rules from https://github.com/coreos/prometheus-operator/tree/master/contrib/kube-prometheus/assets/prometheus/rules
+* document template variables in readme
+* add remote_write for prometheus?
+* can storage limits/requests be calculated?
+* add alertmanager or add parameter to specify an alertmanager url?
+* parameters for grafana credentials?
+* redeploy on configmap change
+* easier configmap changes
+* oauth proxies for grafana/prometheus

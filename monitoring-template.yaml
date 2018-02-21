@@ -32,7 +32,10 @@ parameters:
 # kube-state-metrics
 - description: The location of the kube-state-metrics image.
   name: IMAGE_KUBESTATEMETRICS
-  value: k8s.gcr.io/kube-state-metrics:v1.2.0
+  # Use k-s-m >= v1.2.0 for Kubernetes versions >= 1.8
+  #value: k8s.gcr.io/kube-state-metrics:v1.2.0
+  # Use k-s-m v1.1.0 for Kubernetes versions < 1.8
+  value: k8s.gcr.io/kube-state-metrics:v1.1.0
 
 # Grafana
 - description: The location of the grafana image.
@@ -133,6 +136,12 @@ objects:
           - --config.file=/etc/prometheus/prometheus.yml
           - --storage.tsdb.path=/prometheus
           - --storage.tsdb.retention=31d
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 5
+            periodSeconds: 5
           ports:
           - containerPort: 9090
           resources:
@@ -502,6 +511,12 @@ objects:
           args:
           - '--homepath=/usr/share/grafana'
           - '--config=/etc/grafana/grafana.ini'
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
           ports:
           - containerPort: 3000
           resources:
@@ -561,6 +576,7 @@ objects:
       admin_password = secret
 
     datasource.yaml: |
+      apiVersion: 1
       datasources:
       - name: prometheus
         type: prometheus
@@ -574,17 +590,19 @@ objects:
         basic_auth_user:
         basic_auth_password:
         with_credentials:
-        is_default: false
+        is_default: true
         version: 1
-        editable: true
+        editable: false
       
     dashboard.yaml: |
+      apiVersion: 1
+      providers:
       - name: 'default'
         org_id: 1
         folder: ''
         type: file
         options:
-          folder: /dashboards
+          path: /dashboards
 
 ##############################################################################################
 #
@@ -644,8 +662,15 @@ objects:
         - name: kube-state-metrics
           image: ${IMAGE_KUBESTATEMETRICS}
           imagePullPolicy: IfNotPresent
-          args:
-          - --telemetry-host=0.0.0.0
-          - --telemetry-port=8181
+          # Flags are needed for k-s-m >= v1.2.0
+          #args:
+          #- --telemetry-host=127.0.0.1
+          #- --telemetry-port=8181
           ports:
           - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
