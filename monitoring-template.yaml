@@ -8,11 +8,13 @@ metadata:
       A monitoring solution for an OpenShift cluster - collect and gather metrics and alerts from nodes, services, and the infrastructure.
     iconClass: fa fa-cogs
     tags: "monitoring,prometheus,alertmanager,time-series"
+
 parameters:
 # General
 - description: The namespace to instantiate the monitoring system under. Defaults to 'kube-system'.
   name: NAMESPACE
   value: kube-system
+
 # Prometheus
 - description: The location of the prometheus image.
   name: IMAGE_PROMETHEUS
@@ -45,14 +47,6 @@ parameters:
 - description: Requested memory for Grafana. Defaults to '512Mi'
   name: REQMEMORY_GRAFANA
   value: 512Mi
-
-# TODO:
-# - remove prometheus route?
-# - add remote_write for prometheus?
-# - can storage limits/requests be calculated?
-# - add alertmanager or add parameter to specify an alertmanager url?
-# - are labels correct?
-# - parameters for grafana credentials?
 
 objects:
 ##############################################################################################
@@ -206,18 +200,12 @@ objects:
         - '*.rules'
 
       scrape_configs:
+
       - job_name: 'prometheus'
         metrics_path: '/metrics'
         scheme: http
         static_configs:
         - targets: ['localhost:9090']
-
-      # A scrape configuration for running Prometheus on a Kubernetes cluster.
-      # This uses separate scrape configs for cluster components (i.e. API server, node)
-      # and services to allow each to use different authentication configs.
-      #
-      # Kubernetes labels will be added as Prometheus labels on metrics via the
-      # `labelmap` relabeling action.
 
       # ------------------------------------------------------------------------------
       # Scrape config for API servers.
@@ -282,7 +270,7 @@ objects:
         bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
         kubernetes_sd_configs:
         - role: node
-        # Drop a very high cardinality metric that is incorrect in 3.7. It will be
+        # FIXME Drop a very high cardinality metric that is incorrect in 3.7. It will be
         # fixed in 3.9.
         metric_relabel_configs:
         - source_labels: [__name__]
@@ -407,7 +395,7 @@ objects:
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
         - role: pod
-        relabel_configs:        # drop any partial expensive series
+        relabel_configs:
         #drop expensive series from node-exporter pods
         - source_labels: [__name__, device]
           action: drop
@@ -661,4 +649,3 @@ objects:
           - --telemetry-port=8181
           ports:
           - containerPort: 8080
-          

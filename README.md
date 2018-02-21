@@ -28,18 +28,23 @@ Because we set some cluster-reader role-bindings, we need to login as a cluster-
 oc login -u system:admin
 ```
 
-In the next step we instantiate the project, in this case "monitoring". We also import readymade Grafana-dashboards into a ConfigMap:
+In the next step we instantiate the project, in this case "monitoring". 
 ```
 oc new-project monitoring
+```
+
+Next we import readymade Grafana-dashboards into a ConfigMap:
+```
 oc create configmap dashboards-grafana --from-file=dashboards/
+```
 
 In the next step we create the monitoring componentes based on a template:
 ```
-oc new-app -p NAMESPACE=monitoring -f prometheus.yaml
+oc new-app -p NAMESPACE=monitoring -f monitoring-template.yaml
 ```
 Alternative command:
 ```
-oc process -p NAMESPACE=monitoring -f prometheus.yaml | oc apply -f -
+oc process -p NAMESPACE=monitoring -f monitoring-template.yaml | oc apply -f -
 ```
 
 After this step, you'll have Prometheus, Grafana and kube-state-metrics running.
@@ -87,5 +92,23 @@ minishift ssh
 sudo su -
 cd /var/lib/minishift/openshift.local.pv
 ```
-# Issues
-* k-s-m does not seem to export deployment metrics on openshift
+
+# FIXME
+* [] k-s-m does not seem to export deployment metrics on openshift
+* [] k-s-m filesystem usage contnually grows
+* [] "[Deprecated] the datasource provisioning config is outdated. please upgrade" logger=provisioning.datasources filename=/etc/grafana/provisioning/datasources/datasource.yaml
+* [] "[Deprecated] the dashboard provisioning config is outdated. please upgrade" logger=provisioning.dashboard filename=/etc/grafana/provisioning/dashboards/dashboard.yaml
+* [] "[Deprecated] The folder property is deprecated. Please use path instead." logger=provisioning.dashboard type=file
+* [] check dashboad "cluster overview"
+* [] check rule evaluation and its graph on the prometheus dashboard
+* [] check dashboard "pod": container_network_receive_bytes_total missing
+
+# TODO
+* [] document template variables in readme
+* [] add remote_write for prometheus?
+* [] can storage limits/requests be calculated?
+* [] add alertmanager or add parameter to specify an alertmanager url?
+* [] parameters for grafana credentials?
+* [] redeploy on configmap change
+* [] easier configmap changes
+* [] oauth proxies for grafana/prometheus
