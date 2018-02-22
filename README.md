@@ -2,7 +2,7 @@ Monitoring OpenShift with Prometheus, Node-Exporter, Kube-State-Metrics / visual
 
 # Version overview
 This project was build upon the following components:
-* OpenShift 3.7.1 
+* OpenShift 3.7.1
 * Prometheus 2.1.0  
 * Grafana 5.0.0-beta4
 * Kube-state-metrics 1.1.0
@@ -19,7 +19,7 @@ oc adm policy add-cluster-role-to-user cluster-admin developer
 
 # Deployment steps
 
-## Firewall 
+## Firewall
 see https://github.com/wkulhanek/openshift-prometheus/tree/master/node-exporter
 
 ## Deploy base components
@@ -28,7 +28,7 @@ Because we set some cluster-reader role-bindings, we need to login as a cluster-
 oc login -u system:admin
 ```
 
-In the next step we instantiate the project, in this case "monitoring". 
+In the next step we instantiate the project, in this case "monitoring".
 ```
 oc new-project monitoring
 ```
@@ -38,7 +38,7 @@ Next we import readymade Grafana-dashboards into a ConfigMap:
 oc create configmap dashboards-grafana --from-file=dashboards/
 ```
 
-In the next step we create the monitoring componentes based on a template:
+In the next step we create the monitoring components based on a template:
 ```
 oc new-app -p NAMESPACE=monitoring -f monitoring-template.yaml
 ```
@@ -77,7 +77,16 @@ oc create -f node-exporter.yaml
 oc adm policy add-scc-to-user -z prometheus-node-exporter -n monitoring hostaccess
 ```
 
-# Notes: 
+# WUI access
+Get the routes to open Grafana and Prometheus in the browser:
+```
+oc get route
+NAME         HOST/PORT                                   PATH      SERVICES     PORT      TERMINATION   WILDCARD
+grafana      grafana-monitoring.192.168.64.5.nip.io                grafana      3000                    None
+prometheus   prometheus-monitoring.192.168.64.5.nip.io             prometheus   9090                    None
+```
+
+# Notes:
 ```
 # show events sorted
 oc get events --sort-by='.lastTimestamp'
