@@ -86,6 +86,10 @@ grafana      grafana-monitoring.192.168.64.5.nip.io                grafana      
 prometheus   prometheus-monitoring.192.168.64.5.nip.io             prometheus   9090                    None
 ```
 
+Grafana default login credentials:
+* *root*
+* *secret*
+
 # Notes:
 ```
 # show events sorted
