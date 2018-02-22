@@ -19,6 +19,9 @@ parameters:
 - description: The location of the prometheus image.
   name: IMAGE_PROMETHEUS
   value: prom/prometheus:v2.1.0
+- description: Retention days for Prometheus. Defaults to '10d'
+  name: RETENTION_DAYS_PROMETHEUS
+  value: 10d
 - description: Size of the persistent volume for prometheus. Defaults to '10Gi'.
   name: VOLUMESIZE_PROMETHEUS
   value: 10Gi
@@ -50,6 +53,12 @@ parameters:
 - description: Requested memory for Grafana. Defaults to '512Mi'
   name: REQMEMORY_GRAFANA
   value: 512Mi
+- description: Default admin user name for Grafana. Defaults to 'root'
+  name: ADMIN_USERNAME_GRAFANA
+  value: root
+- description: Default admin password for Grafana. Defaults to 'secret'
+  name: ADMIN_USERNAME_GRAFANA
+  value: secret
 
 objects:
 ##############################################################################################
@@ -135,7 +144,7 @@ objects:
           args:
           - --config.file=/etc/prometheus/prometheus.yml
           - --storage.tsdb.path=/prometheus
-          - --storage.tsdb.retention=31d
+          - --storage.tsdb.retention=${RETENTION_DAYS_PROMETHEUS}
           readinessProbe:
             httpGet:
               path: /-/ready
@@ -393,7 +402,7 @@ objects:
 
       # ------------------------------------------------------------------------------
       # Scrape config for piods
-      # 
+      #
       # The relabeling allows the actual pod scrape endpoint to be configured via the
       # following annotations:
       #
@@ -567,13 +576,13 @@ objects:
       plugins = /var/lib/grafana/plugins
       provisioning = /etc/grafana/provisioning
       #logs = /var/log/grafana
-      
+
       [log]
       mode = console
-      
+
       [security]
-      admin_user = root
-      admin_password = secret
+      admin_user = ${ADMIN_USERNAME_GRAFANA}
+      admin_password = ${ADMIN_PASSWORD_GRAFANA}
 
     datasource.yaml: |
       apiVersion: 1
@@ -593,7 +602,7 @@ objects:
         is_default: true
         version: 1
         editable: false
-      
+
     dashboard.yaml: |
       apiVersion: 1
       providers:
@@ -610,7 +619,7 @@ objects:
 #
 ##############################################################################################
 # kube-state-metrics service account with role cluster-reader
-- apiVersion: v1  
+- apiVersion: v1
   kind: ServiceAccount
   metadata:
     name: kube-state-metrics
