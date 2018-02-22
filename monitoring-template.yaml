@@ -57,7 +57,7 @@ parameters:
   name: ADMIN_USERNAME_GRAFANA
   value: root
 - description: Default admin password for Grafana. Defaults to 'secret'
-  name: ADMIN_USERNAME_GRAFANA
+  name: ADMIN_PASSWORD_GRAFANA
   value: secret
 
 objects:
