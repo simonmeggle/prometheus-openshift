@@ -1,4 +1,4 @@
-# node-exporter is an optional component that collects host level metrics from the nodes 
+# node-exporter is an optional component that collects host level metrics from the nodes
 # in the cluster. This group of resources will require the 'hostaccess' level of privilege, which
 # should only be granted to namespaces that administrators can access.
 apiVersion: v1
@@ -8,7 +8,8 @@ items:
   kind: ServiceAccount
   metadata:
     name: prometheus-node-exporter
-  # You must grant hostaccess via: oadm policy add-scc-to-user -z prometheus-node-exporter hostaccess
+  # You must grant hostaccess via:
+  # oc adm policy add-scc-to-user -z prometheus-node-exporter -n [NAMESPCACE] hostaccess
   # in order for the node-exporter to access the host network and mount /proc and /sys from the host
 - apiVersion: extensions/v1beta1
   kind: DaemonSet
